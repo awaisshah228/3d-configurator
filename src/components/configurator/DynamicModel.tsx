@@ -22,9 +22,11 @@ export default function DynamicModel({ modelUrl, configSchema }: DynamicModelPro
   // Stores original material.map before we replaced it with a canvas texture
   const originalMapsRef = useRef<Map<THREE.Mesh, THREE.Texture | null>>(new Map());
 
-  // Build mesh map and clone materials
+  // Build mesh map, clone materials, and eagerly store original maps
   useEffect(() => {
-    const map = new Map<string, THREE.Mesh>();
+    const meshMap = new Map<string, THREE.Mesh>();
+    const origMaps = new Map<THREE.Mesh, THREE.Texture | null>();
+
     clonedScene.traverse((child) => {
       if (!(child as THREE.Mesh).isMesh) return;
       const mesh = child as THREE.Mesh;
@@ -33,10 +35,16 @@ export default function DynamicModel({ modelUrl, configSchema }: DynamicModelPro
       } else if (mesh.material) {
         mesh.material = (mesh.material as THREE.Material).clone();
       }
-      map.set(mesh.name, mesh);
+      meshMap.set(mesh.name, mesh);
+      // Store original map from the freshly cloned material so color + logo effects can restore it
+      const mat = mesh.material as THREE.MeshStandardMaterial;
+      if (mat && !Array.isArray(mesh.material)) {
+        origMaps.set(mesh, mat.map ?? null);
+      }
     });
-    meshMapRef.current = map;
-    originalMapsRef.current = new Map();
+
+    meshMapRef.current = meshMap;
+    originalMapsRef.current = origMaps;
   }, [clonedScene]);
 
   // Helper: find meshes for a part (exact → partial → all)
@@ -79,7 +87,13 @@ export default function DynamicModel({ modelUrl, configSchema }: DynamicModelPro
 
           if (option.type === "color" && option.colors) {
             const color = option.colors.find((c) => c.id === selectedValue);
-            if (color) { material.color.set(color.hex); material.needsUpdate = true; }
+            if (color) {
+              // Clear the base texture so the solid color is visible instead of being
+              // multiplied (and effectively hidden) by the original GLTF texture
+              material.map = null;
+              material.color.set(color.hex);
+              material.needsUpdate = true;
+            }
           }
 
           if (option.type === "material" && option.materials) {

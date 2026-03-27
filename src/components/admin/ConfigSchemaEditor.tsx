@@ -188,47 +188,87 @@ export default function ConfigSchemaEditor({
             {part.options.map((option) => (
               <div
                 key={option.id}
-                className="flex items-center gap-2 bg-gray-50 rounded-lg px-3 py-2"
+                className="bg-gray-50 rounded-lg px-3 py-2 space-y-2"
               >
-                <span
-                  className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                    option.type === "color"
-                      ? "bg-purple-100 text-purple-700"
-                      : option.type === "material"
-                      ? "bg-green-100 text-green-700"
-                      : option.type === "logo"
-                      ? "bg-pink-100 text-pink-700"
-                      : "bg-orange-100 text-orange-700"
-                  }`}
-                >
-                  {option.type}
-                </span>
-                <input
-                  type="text"
-                  value={option.label}
-                  onChange={(e) => {
-                    const newOptions = part.options.map((o) =>
-                      o.id === option.id ? { ...o, label: e.target.value } : o
-                    );
-                    updatePart(part.id, { options: newOptions });
-                  }}
-                  className="flex-1 px-2 py-1 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-300"
-                />
-                <span className="text-gray-400 text-xs">
-                  {option.type === "color"
-                    ? `${option.colors?.length || 0} colors`
-                    : option.type === "material"
-                    ? `${option.materials?.length || 0} presets`
-                    : option.type === "logo"
-                    ? "image upload"
-                    : "toggle"}
-                </span>
-                <button
-                  onClick={() => removeOption(part.id, option.id)}
-                  className="text-red-400 hover:text-red-600 text-xs"
-                >
-                  x
-                </button>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${
+                      option.type === "color"
+                        ? "bg-purple-100 text-purple-700"
+                        : option.type === "material"
+                        ? "bg-green-100 text-green-700"
+                        : option.type === "logo"
+                        ? "bg-pink-100 text-pink-700"
+                        : "bg-orange-100 text-orange-700"
+                    }`}
+                  >
+                    {option.type}
+                  </span>
+                  <input
+                    type="text"
+                    value={option.label}
+                    onChange={(e) => {
+                      const newOptions = part.options.map((o) =>
+                        o.id === option.id ? { ...o, label: e.target.value } : o
+                      );
+                      updatePart(part.id, { options: newOptions });
+                    }}
+                    className="flex-1 px-2 py-1 text-sm border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-300"
+                  />
+                  <button
+                    onClick={() => removeOption(part.id, option.id)}
+                    className="text-red-400 hover:text-red-600 text-xs shrink-0"
+                  >
+                    x
+                  </button>
+                </div>
+
+                {/* Default value selector */}
+                {option.type === "color" && option.colors && option.colors.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500 shrink-0">Default:</span>
+                    <div className="flex flex-wrap gap-1">
+                      {option.colors.map((c) => (
+                        <button
+                          key={c.id}
+                          title={c.label}
+                          onClick={() => {
+                            const newOptions = part.options.map((o) =>
+                              o.id === option.id ? { ...o, defaultValue: c.id } : o
+                            );
+                            updatePart(part.id, { options: newOptions });
+                          }}
+                          className={`w-5 h-5 rounded-full border-2 transition-all ${
+                            option.defaultValue === c.id
+                              ? "border-blue-500 scale-125"
+                              : "border-gray-300 hover:border-gray-400"
+                          }`}
+                          style={{ backgroundColor: c.hex }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {option.type === "material" && option.materials && option.materials.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-500 shrink-0">Default:</span>
+                    <select
+                      value={option.defaultValue}
+                      onChange={(e) => {
+                        const newOptions = part.options.map((o) =>
+                          o.id === option.id ? { ...o, defaultValue: e.target.value } : o
+                        );
+                        updatePart(part.id, { options: newOptions });
+                      }}
+                      className="text-xs border border-gray-200 rounded px-1.5 py-1 focus:outline-none focus:ring-1 focus:ring-blue-300"
+                    >
+                      {option.materials.map((m) => (
+                        <option key={m.id} value={m.id}>{m.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
             ))}
             <div className="flex gap-2">
