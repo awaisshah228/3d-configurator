@@ -7,7 +7,9 @@ import type {
   ConfigOption,
   ColorOption,
   MaterialPreset,
+  TextureOption,
 } from "@/lib/configurator-types";
+import type { UploadedTexture } from "@/components/admin/ModelUploader";
 
 const DEFAULT_COLORS: ColorOption[] = [
   { id: "white", label: "White", hex: "#ffffff" },
@@ -34,6 +36,7 @@ interface ConfigSchemaEditorProps {
   meshNames: string[];
   initialSchema?: ConfigSchema;
   onChange: (schema: ConfigSchema) => void;
+  availableTextures?: UploadedTexture[];
 }
 
 function ColorEditor({
@@ -177,7 +180,7 @@ function ColorEditor({
   );
 }
 
-export default function ConfigSchemaEditor({ meshNames, initialSchema, onChange }: ConfigSchemaEditorProps) {
+export default function ConfigSchemaEditor({ meshNames, initialSchema, onChange, availableTextures = [] }: ConfigSchemaEditorProps) {
   const [parts, setParts] = useState<ConfigPart[]>(initialSchema?.parts ?? []);
   const [expandedPart, setExpandedPart] = useState<string | null>(null);
 
@@ -223,13 +226,26 @@ export default function ConfigSchemaEditor({ meshNames, initialSchema, onChange 
     const part = parts.find((p) => p.id === partId);
     if (!part) return;
     const uid = crypto.randomUUID();
+
+    const builtTextures: TextureOption[] = availableTextures.map((t) => ({
+      id: t.name.toLowerCase().replace(/\s+/g, "-"),
+      label: t.name,
+      url: t.url,
+      thumbnail: t.previewDataUrl,
+    }));
+
     const option: ConfigOption = {
       id: `${type}-${uid}`,
-      label: type.charAt(0).toUpperCase() + type.slice(1),
+      label: type === "texture" ? "Texture" : type.charAt(0).toUpperCase() + type.slice(1),
       type,
-      defaultValue: type === "color" ? "white" : type === "material" ? "matte" : "visible",
+      defaultValue:
+        type === "color" ? "white"
+        : type === "material" ? "matte"
+        : type === "texture" ? (builtTextures[0]?.id ?? "")
+        : "visible",
       ...(type === "color" ? { colors: [...DEFAULT_COLORS] } : {}),
       ...(type === "material" ? { materials: [...DEFAULT_MATERIALS] } : {}),
+      ...(type === "texture" ? { textures: builtTextures } : {}),
     };
     updatePart(partId, { options: [...part.options, option] });
   };
@@ -374,6 +390,8 @@ export default function ConfigSchemaEditor({ meshNames, initialSchema, onChange 
                               ? "bg-green-100 text-green-700"
                               : option.type === "logo"
                               ? "bg-pink-100 text-pink-700"
+                              : option.type === "texture"
+                              ? "bg-cyan-100 text-cyan-700"
                               : "bg-orange-100 text-orange-700"
                           }`}
                         >
@@ -422,6 +440,39 @@ export default function ConfigSchemaEditor({ meshNames, initialSchema, onChange 
                           </div>
                         </div>
                       )}
+
+                      {option.type === "texture" && option.textures && (
+                        <div className="space-y-2">
+                          {option.textures.length === 0 ? (
+                            <p className="text-xs text-amber-600 bg-amber-50 rounded-lg p-2">
+                              No textures available. Upload texture images in Step 1 alongside your GLB.
+                            </p>
+                          ) : (
+                            <>
+                              <p className="text-xs text-gray-400">Click to set as default:</p>
+                              <div className="grid grid-cols-4 gap-2">
+                                {option.textures.map((tex) => (
+                                  <button
+                                    key={tex.id}
+                                    onClick={() => updateOption(part.id, option.id, { defaultValue: tex.id })}
+                                    className={`relative rounded-lg overflow-hidden aspect-square border-2 transition-all ${
+                                      option.defaultValue === tex.id
+                                        ? "border-gray-900 ring-2 ring-gray-900 ring-offset-1"
+                                        : "border-transparent hover:border-gray-400"
+                                    }`}
+                                  >
+                                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                                    <img src={tex.thumbnail ?? tex.url} alt={tex.label} className="w-full h-full object-cover" />
+                                    <div className="absolute inset-x-0 bottom-0 bg-black/50 text-white text-[9px] py-0.5 text-center truncate px-0.5">
+                                      {tex.label}
+                                    </div>
+                                  </button>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
 
@@ -443,6 +494,15 @@ export default function ConfigSchemaEditor({ meshNames, initialSchema, onChange 
                         </button>
                       );
                     })}
+                    {availableTextures.length > 0 && (
+                      <button
+                        onClick={() => addOption(part.id, "texture")}
+                        className="text-xs px-3 py-1.5 rounded-lg font-semibold bg-cyan-50 text-cyan-600 hover:bg-cyan-100 transition-colors"
+                        title={`Add texture option (${availableTextures.length} texture${availableTextures.length > 1 ? "s" : ""} available)`}
+                      >
+                        + Texture ({availableTextures.length})
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

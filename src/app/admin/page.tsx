@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import dynamic from "next/dynamic";
-import ModelUploader from "@/components/admin/ModelUploader";
+import ModelUploader, { type UploadedTexture } from "@/components/admin/ModelUploader";
 import MeshAnalyzer from "@/components/admin/MeshAnalyzer";
 import ConfigSchemaEditor from "@/components/admin/ConfigSchemaEditor";
 import AdminModelViewer, { type TestOverride } from "@/components/admin/AdminModelViewer";
@@ -92,6 +92,7 @@ export default function AdminPage() {
   const [viewerSettings, setViewerSettings] = useState<ViewerSettings>(DEFAULT_VIEWER_SETTINGS);
   const [selectedMesh, setSelectedMesh] = useState<string | null>(null);
   const [testOverrides, setTestOverrides] = useState<Record<string, TestOverride>>({});
+  const [uploadedTextures, setUploadedTextures] = useState<UploadedTexture[]>([]);
 
   const handleMeshesFound = useCallback((meshes: string[], materials: string[]) => {
     setMeshNames(meshes);
@@ -110,6 +111,7 @@ export default function AdminPage() {
     setCameraZoom(1);
     setSelectedMesh(null);
     setTestOverrides({});
+    setUploadedTextures([]);
     setEditingId(null);
     setWizardStep(1);
   };
@@ -358,7 +360,7 @@ export default function AdminPage() {
                   </div>
 
                   <ModelUploader
-                    onModelUploaded={(file, url) => {
+                    onModelUploaded={(file, url, textures) => {
                       setModelUrl(url);
                       setModelFileName(file.name);
                       if (!productName) {
@@ -366,6 +368,7 @@ export default function AdminPage() {
                           file.name.replace(/\.[^.]+$/, "").replace(/[_-]/g, " ")
                         );
                       }
+                      if (textures && textures.length > 0) setUploadedTextures(textures);
                       setWizardStep(2);
                     }}
                   />
@@ -436,7 +439,7 @@ export default function AdminPage() {
                 {/* Right: 3D preview */}
                 <div className="lg:sticky lg:top-24 lg:self-start">
                   <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                    <div className="h-80">
+                    <div className="h-130">
                       {modelUrl ? (
                         <AdminModelViewer
                           modelUrl={modelUrl}
@@ -452,9 +455,9 @@ export default function AdminPage() {
                         </div>
                       )}
                     </div>
-                    <div className="p-4 border-t border-gray-100">
+                    <div className="p-3 border-t border-gray-100">
                       <p className="text-xs text-gray-400 font-medium text-center">
-                        Click a part in the viewer to highlight it · hover to see its name
+                        Click any part to highlight it · drag to rotate
                       </p>
                     </div>
                   </div>
@@ -472,6 +475,7 @@ export default function AdminPage() {
                       meshNames={meshNames}
                       initialSchema={configSchema}
                       onChange={setConfigSchema}
+                      availableTextures={uploadedTextures}
                     />
                   </div>
                 </div>
@@ -492,7 +496,7 @@ export default function AdminPage() {
                         <span className="w-8 text-right font-medium text-gray-600">{cameraZoom.toFixed(1)}×</span>
                       </div>
                     </div>
-                    <div className="h-80">
+                    <div className="h-130">
                       {modelUrl ? (
                         <AdminModelViewer
                           modelUrl={modelUrl}
@@ -532,7 +536,7 @@ export default function AdminPage() {
                         This is exactly what your customers will see
                       </p>
                     </div>
-                    <div className="h-96">
+                    <div className="h-130">
                       {modelUrl ? (
                         <ConfiguratorCanvas
                           modelUrl={modelUrl}
