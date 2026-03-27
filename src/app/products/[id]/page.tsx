@@ -47,6 +47,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
           configSchema={product.configSchema}
           productName={product.name}
           cameraZoom={product.cameraZoom}
+          viewerSettings={product.viewerSettings}
         />
       </main>
     </div>

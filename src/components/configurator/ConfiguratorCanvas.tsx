@@ -5,12 +5,13 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Environment, ContactShadows, Center, useGLTF } from "@react-three/drei";
 import * as THREE from "three";
 import DynamicModel from "./DynamicModel";
-import type { ConfigSchema } from "@/lib/configurator-types";
+import type { ConfigSchema, ViewerSettings } from "@/lib/configurator-types";
 
 interface ConfiguratorCanvasProps {
   modelUrl: string;
   configSchema: ConfigSchema;
   cameraZoom?: number;
+  viewerSettings?: ViewerSettings;
 }
 
 function Loader() {
@@ -22,7 +23,7 @@ function Loader() {
   );
 }
 
-function CameraRig({ modelUrl, zoom = 1 }: { modelUrl: string; zoom?: number }) {
+function CameraRig({ modelUrl, zoom = 1, angle = 0.15 }: { modelUrl: string; zoom?: number; angle?: number }) {
   const { scene: modelScene } = useGLTF(modelUrl);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const orbitRef = useRef<any>(null);
@@ -39,7 +40,7 @@ function CameraRig({ modelUrl, zoom = 1 }: { modelUrl: string; zoom?: number }) 
       box.getBoundingSphere(sphere);
       radiusRef.current = sphere.radius;
       const r = radiusRef.current;
-      camera.position.set(0, r * 0.15, r * 2.5 * zoom);
+      camera.position.set(0, r * angle, r * 2.5 * zoom);
       camera.lookAt(0, 0, 0);
       cameraFitted.current = true;
     }
@@ -58,7 +59,20 @@ function CameraRig({ modelUrl, zoom = 1 }: { modelUrl: string; zoom?: number }) 
   return <OrbitControls ref={orbitRef} enablePan={false} />;
 }
 
-export default function ConfiguratorCanvas({ modelUrl, configSchema, cameraZoom = 1 }: ConfiguratorCanvasProps) {
+export default function ConfiguratorCanvas({
+  modelUrl,
+  configSchema,
+  cameraZoom = 1,
+  viewerSettings,
+}: ConfiguratorCanvasProps) {
+  const bg = viewerSettings?.bgColor ?? "#e8e8e8";
+  const ambient = viewerSettings?.ambientIntensity ?? 0.7;
+  const keyLight = viewerSettings?.keyLightIntensity ?? 1.2;
+  const envPreset = (viewerSettings?.envPreset ?? "studio") as Parameters<typeof Environment>[0]["preset"];
+  const shadowEnabled = viewerSettings?.shadowEnabled ?? true;
+  const shadowOpacity = viewerSettings?.shadowOpacity ?? 0.35;
+  const cameraAngle = viewerSettings?.cameraAngle ?? 0.15;
+
   return (
     <div className="w-full h-full rounded-xl overflow-hidden">
       <Canvas
@@ -71,33 +85,21 @@ export default function ConfiguratorCanvas({ modelUrl, configSchema, cameraZoom 
           toneMappingExposure: 1.1,
         }}
       >
-        {/* Neutral background like Sketchfab */}
-        <color attach="background" args={["#e8e8e8"]} />
-
-        {/* 3-point lighting setup */}
-        <ambientLight intensity={0.7} />
-        {/* Key light — front top right */}
-        <directionalLight position={[3, 5, 4]} intensity={1.2} castShadow
-          shadow-mapSize={[1024, 1024]}
-        />
-        {/* Fill light — left side */}
-        <directionalLight position={[-4, 2, 2]} intensity={0.5} />
-        {/* Rim/back light */}
-        <directionalLight position={[0, 3, -5]} intensity={0.3} />
+        <color attach="background" args={[bg]} />
+        <ambientLight intensity={ambient} />
+        <directionalLight position={[3, 5, 4]} intensity={keyLight} castShadow shadow-mapSize={[1024, 1024]} />
+        <directionalLight position={[-4, 2, 2]} intensity={keyLight * 0.4} />
+        <directionalLight position={[0, 3, -5]} intensity={keyLight * 0.25} />
 
         <Suspense fallback={<Loader />}>
           <Center>
             <DynamicModel modelUrl={modelUrl} configSchema={configSchema} />
           </Center>
-          <ContactShadows
-            position={[0, -0.01, 0]}
-            opacity={0.35}
-            scale={10}
-            blur={3}
-            far={10}
-          />
-          <Environment preset="studio" />
-          <CameraRig modelUrl={modelUrl} zoom={cameraZoom} />
+          {shadowEnabled && (
+            <ContactShadows position={[0, -0.01, 0]} opacity={shadowOpacity} scale={10} blur={3} far={10} />
+          )}
+          <Environment preset={envPreset} />
+          <CameraRig modelUrl={modelUrl} zoom={cameraZoom} angle={cameraAngle} />
         </Suspense>
       </Canvas>
     </div>

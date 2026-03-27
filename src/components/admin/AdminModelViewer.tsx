@@ -136,7 +136,7 @@ function InteractiveModel({
   );
 }
 
-function CameraRig({ modelUrl, zoom = 1 }: { modelUrl: string; zoom?: number }) {
+function CameraRig({ modelUrl, zoom = 1, angle = 0.15 }: { modelUrl: string; zoom?: number; angle?: number }) {
   const { scene: modelScene } = useGLTF(modelUrl);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const orbitRef = useRef<any>(null);
@@ -154,7 +154,7 @@ function CameraRig({ modelUrl, zoom = 1 }: { modelUrl: string; zoom?: number }) 
       box.getBoundingSphere(sphere);
       radiusRef.current = sphere.radius;
       const r = radiusRef.current;
-      camera.position.set(0, r * 0.15, r * 2.5 * zoom);
+      camera.position.set(0, r * angle, r * 2.5 * zoom);
       camera.lookAt(0, 0, 0);
       cameraFitted.current = true;
     }

@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import dynamic from "next/dynamic";
 import PartSelector from "./PartSelector";
 import { useConfiguratorStore } from "@/stores/configurator-store";
-import type { ConfigSchema } from "@/lib/configurator-types";
+import type { ConfigSchema, ViewerSettings } from "@/lib/configurator-types";
 import type { Selections } from "@/lib/configurator-types";
 
 const ConfiguratorCanvas = dynamic(() => import("./ConfiguratorCanvas"), {
@@ -21,6 +21,7 @@ interface ConfiguratorProps {
   configSchema: ConfigSchema;
   productName: string;
   cameraZoom?: number;
+  viewerSettings?: ViewerSettings;
 }
 
 export default function Configurator({
@@ -28,6 +29,7 @@ export default function Configurator({
   configSchema,
   productName,
   cameraZoom,
+  viewerSettings,
 }: ConfiguratorProps) {
   const { initSelections, resetSelections } = useConfiguratorStore();
 
@@ -48,7 +50,7 @@ export default function Configurator({
     <div className="flex flex-col lg:flex-row gap-6 h-full">
       {/* 3D Canvas */}
       <div className="flex-1 min-h-[500px]">
-        <ConfiguratorCanvas modelUrl={modelUrl} configSchema={configSchema} cameraZoom={cameraZoom} />
+        <ConfiguratorCanvas modelUrl={modelUrl} configSchema={configSchema} cameraZoom={cameraZoom} viewerSettings={viewerSettings} />
       </div>
 
       {/* Controls Panel */}
