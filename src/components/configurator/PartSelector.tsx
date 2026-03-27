@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useConfiguratorStore } from "@/stores/configurator-store";
-import type { ConfigSchema } from "@/lib/configurator-types";
+import type { ConfigSchema, ConfigOption } from "@/lib/configurator-types";
 
 interface PartSelectorProps {
   configSchema: ConfigSchema;
@@ -17,6 +17,32 @@ const MATERIAL_ICONS: Record<string, string> = {
   rubber: "⚫",
 };
 
+/** Returns the human-readable label for the currently selected value */
+function getValueLabel(option: ConfigOption, currentValue: string): string {
+  if (option.type === "color" && option.colors) {
+    return option.colors.find((c) => c.id === currentValue)?.label ?? currentValue;
+  }
+  if (option.type === "material" && option.materials) {
+    return option.materials.find((m) => m.id === currentValue)?.label ?? currentValue;
+  }
+  if (option.type === "texture" && option.textures) {
+    return option.textures.find((t) => t.id === currentValue)?.label ?? currentValue;
+  }
+  if (option.type === "visibility") {
+    return currentValue === "visible" ? "Visible" : "Hidden";
+  }
+  return "";
+}
+
+/** Returns the hex color for the currently selected color option (for the mini dot) */
+function getValueHex(option: ConfigOption, currentValue: string): string | null {
+  if (option.type === "color" && option.colors) {
+    const c = option.colors.find((c) => c.id === currentValue);
+    return c?.hex ?? null;
+  }
+  return null;
+}
+
 export default function PartSelector({ configSchema }: PartSelectorProps) {
   const { selections, setSelection, logos, setLogo } = useConfiguratorStore();
   const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
@@ -29,13 +55,13 @@ export default function PartSelector({ configSchema }: PartSelectorProps) {
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-2.5">
       {configSchema.parts.map((part) => {
         const isExpanded = expandedParts[part.id] ?? true;
 
         return (
           <div key={part.id} className="border border-gray-100 rounded-2xl overflow-hidden bg-white shadow-sm">
-            {/* Part header */}
+            {/* Part accordion header */}
             <button
               onClick={() => togglePart(part.id)}
               className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-gray-50 transition-colors"
@@ -53,12 +79,28 @@ export default function PartSelector({ configSchema }: PartSelectorProps) {
               <div className="px-4 pb-4 space-y-4 border-t border-gray-100 pt-3">
                 {part.options.map((option) => {
                   const currentValue = selections[part.id]?.[option.id] || option.defaultValue;
+                  const valueLabel = getValueLabel(option, currentValue);
+                  const valueHex = getValueHex(option, currentValue);
 
                   return (
                     <div key={option.id}>
-                      <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2.5 block">
-                        {option.label}
-                      </label>
+                      {/* Option header with current selection label */}
+                      <div className="flex items-center justify-between mb-2.5">
+                        <label className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                          {option.label}
+                        </label>
+                        {valueLabel && (
+                          <span className="flex items-center gap-1.5 text-xs font-semibold text-gray-900">
+                            {valueHex && (
+                              <span
+                                className="inline-block w-3 h-3 rounded-full border border-gray-200"
+                                style={{ backgroundColor: valueHex }}
+                              />
+                            )}
+                            {valueLabel}
+                          </span>
+                        )}
+                      </div>
 
                       {/* ── Color swatches ── */}
                       {option.type === "color" && option.colors && (
@@ -70,7 +112,7 @@ export default function PartSelector({ configSchema }: PartSelectorProps) {
                                 key={color.id}
                                 onClick={() => setSelection(part.id, option.id, color.id)}
                                 title={color.label}
-                                className={`relative w-9 h-9 rounded-full transition-all duration-150 ${
+                                className={`relative w-9 h-9 rounded-full transition-all duration-200 ${
                                   isActive
                                     ? "ring-2 ring-offset-2 ring-gray-800 scale-110"
                                     : "ring-1 ring-gray-200 hover:scale-110 hover:ring-gray-400"
@@ -83,7 +125,7 @@ export default function PartSelector({ configSchema }: PartSelectorProps) {
                               >
                                 {isActive && (
                                   <span className="absolute inset-0 flex items-center justify-center">
-                                    <span className="w-2 h-2 rounded-full bg-white shadow-sm" />
+                                    <span className="w-2 h-2 rounded-full bg-white shadow" />
                                   </span>
                                 )}
                               </button>
@@ -101,9 +143,9 @@ export default function PartSelector({ configSchema }: PartSelectorProps) {
                               <button
                                 key={mat.id}
                                 onClick={() => setSelection(part.id, option.id, mat.id)}
-                                className={`flex flex-col items-center gap-1.5 py-2.5 px-1 rounded-xl text-xs font-medium transition-all border ${
+                                className={`flex flex-col items-center gap-1 py-2.5 px-1 rounded-xl text-xs font-medium transition-all border ${
                                   isActive
-                                    ? "bg-gray-900 text-white border-gray-900"
+                                    ? "bg-gray-900 text-white border-gray-900 shadow-sm"
                                     : "bg-gray-50 text-gray-600 border-gray-200 hover:border-gray-400 hover:bg-gray-100"
                                 }`}
                               >
@@ -132,16 +174,10 @@ export default function PartSelector({ configSchema }: PartSelectorProps) {
                                 }`}
                               >
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img
-                                  src={tex.thumbnail ?? tex.url}
-                                  alt={tex.label}
-                                  className="w-full h-full object-cover"
-                                />
-                                <div className={`absolute inset-x-0 bottom-0 py-0.5 text-center text-xs font-medium truncate px-1 ${
+                                <img src={tex.thumbnail ?? tex.url} alt={tex.label} className="w-full h-full object-cover" />
+                                <div className={`absolute inset-x-0 bottom-0 py-0.5 text-[10px] font-medium truncate text-center px-0.5 ${
                                   isActive ? "bg-gray-900/80 text-white" : "bg-white/80 text-gray-700"
-                                }`}>
-                                  {tex.label}
-                                </div>
+                                }`}>{tex.label}</div>
                                 {isActive && (
                                   <div className="absolute top-1 right-1 w-4 h-4 bg-gray-900 rounded-full flex items-center justify-center">
                                     <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -201,67 +237,41 @@ export default function PartSelector({ configSchema }: PartSelectorProps) {
                                 reader.readAsDataURL(file);
                               }}
                             />
-
                             {!placement ? (
                               <button
                                 onClick={() => fileInputRefs.current[key]?.click()}
                                 className="w-full border-2 border-dashed border-gray-200 rounded-xl py-5 text-center text-sm text-gray-400 hover:border-gray-400 hover:text-gray-600 transition-colors"
                               >
                                 <div className="text-2xl mb-1">🖼️</div>
-                                Click to upload logo / image
+                                Upload logo or image
                               </button>
                             ) : (
                               <div className="space-y-3">
                                 <div className="flex items-center gap-3 bg-gray-50 rounded-xl p-3 border border-gray-100">
                                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                                  <img
-                                    src={placement.dataUrl}
-                                    alt="logo"
-                                    className="w-12 h-12 object-contain rounded-lg border border-gray-200 bg-white"
-                                  />
+                                  <img src={placement.dataUrl} alt="logo" className="w-12 h-12 object-contain rounded-lg border border-gray-200 bg-white" />
                                   <div className="flex-1 min-w-0">
                                     <p className="text-sm font-medium text-gray-700">Logo uploaded</p>
-                                    <p className="text-xs text-gray-400">Adjust below</p>
+                                    <p className="text-xs text-gray-400">Adjust position below</p>
                                   </div>
                                   <div className="flex gap-1.5">
-                                    <button
-                                      onClick={() => fileInputRefs.current[key]?.click()}
-                                      className="text-xs px-2.5 py-1 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg text-gray-600"
-                                    >
-                                      Replace
-                                    </button>
-                                    <button
-                                      onClick={() => setLogo(part.id, option.id, null)}
-                                      className="text-xs px-2.5 py-1 bg-red-50 border border-red-100 hover:bg-red-100 rounded-lg text-red-500"
-                                    >
-                                      Remove
-                                    </button>
+                                    <button onClick={() => fileInputRefs.current[key]?.click()} className="text-xs px-2.5 py-1 bg-white border border-gray-200 hover:bg-gray-50 rounded-lg text-gray-600">Replace</button>
+                                    <button onClick={() => setLogo(part.id, option.id, null)} className="text-xs px-2.5 py-1 bg-red-50 border border-red-100 hover:bg-red-100 rounded-lg text-red-500">Remove</button>
                                   </div>
                                 </div>
-
-                                {/* Flip toggles */}
                                 <div className="flex gap-2">
                                   {([{ label: "Flip H", key: "flipH" }, { label: "Flip V", key: "flipV" }] as const).map(({ label, key: k }) => (
                                     <button
                                       key={k}
-                                      onClick={() =>
-                                        setLogo(part.id, option.id, {
-                                          ...placement,
-                                          [k]: !placement[k as keyof typeof placement],
-                                        })
-                                      }
+                                      onClick={() => setLogo(part.id, option.id, { ...placement, [k]: !placement[k as keyof typeof placement] })}
                                       className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${
                                         placement[k as keyof typeof placement]
                                           ? "bg-gray-900 text-white border-gray-900"
                                           : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
                                       }`}
-                                    >
-                                      {label}
-                                    </button>
+                                    >{label}</button>
                                   ))}
                                 </div>
-
-                                {/* Position / size sliders */}
                                 {([
                                   { label: "Left ↔ Right", key: "x", min: 0.05, max: 0.95, step: 0.01 },
                                   { label: "Top ↕ Bottom", key: "y", min: 0.05, max: 0.95, step: 0.01 },
@@ -270,20 +280,12 @@ export default function PartSelector({ configSchema }: PartSelectorProps) {
                                   <div key={k}>
                                     <div className="flex justify-between text-xs text-gray-500 mb-1">
                                       <span>{label}</span>
-                                      <span className="font-medium text-gray-700">
-                                        {Math.round((placement[k as keyof typeof placement] as number) * 100)}%
-                                      </span>
+                                      <span className="font-medium text-gray-700">{Math.round((placement[k as keyof typeof placement] as number) * 100)}%</span>
                                     </div>
-                                    <input
-                                      type="range" min={min} max={max} step={step}
+                                    <input type="range" min={min} max={max} step={step}
                                       value={placement[k as keyof typeof placement] as number}
-                                      onChange={(e) =>
-                                        setLogo(part.id, option.id, {
-                                          ...placement,
-                                          [k]: parseFloat(e.target.value),
-                                        })
-                                      }
-                                      className="w-full accent-gray-900"
+                                      onChange={(e) => setLogo(part.id, option.id, { ...placement, [k]: parseFloat(e.target.value) })}
+                                      className="w-full"
                                     />
                                   </div>
                                 ))}

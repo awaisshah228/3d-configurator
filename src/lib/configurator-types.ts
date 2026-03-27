@@ -13,6 +13,17 @@ export interface MaterialPreset {
   color?: string;
   metalness?: number;
   roughness?: number;
+  // Extended PBR properties
+  normalMapUrl?: string;
+  roughnessMapUrl?: string;
+  aoMapUrl?: string;
+  emissive?: string;
+  emissiveIntensity?: number;
+  clearcoat?: number;
+  clearcoatRoughness?: number;
+  sheen?: number;
+  sheenColor?: string;
+  sheenRoughness?: number;
 }
 
 export interface TextureOption {

@@ -8,7 +8,18 @@ import ConfigSchemaEditor from "@/components/admin/ConfigSchemaEditor";
 import AdminModelViewer, { type TestOverride } from "@/components/admin/AdminModelViewer";
 import ViewerSettingsPanel from "@/components/admin/ViewerSettingsPanel";
 import { DEFAULT_VIEWER_SETTINGS } from "@/lib/configurator-types";
-import type { ViewerSettings, ConfigSchema } from "@/lib/configurator-types";
+import type { ViewerSettings, ConfigSchema, Selections } from "@/lib/configurator-types";
+
+function schemaDefaults(schema: ConfigSchema): Selections {
+  const out: Selections = {};
+  for (const part of schema.parts) {
+    out[part.id] = {};
+    for (const option of part.options) {
+      out[part.id][option.id] = option.defaultValue;
+    }
+  }
+  return out;
+}
 import { useProductsStore } from "@/stores/products-store";
 
 const ConfiguratorCanvas = dynamic(
@@ -300,6 +311,8 @@ export default function AdminPage() {
                       <ConfiguratorCanvas
                         modelUrl={product.modelUrl}
                         configSchema={product.configSchema}
+                        selections={schemaDefaults(product.configSchema)}
+                        disablePostProcessing
                       />
                     </div>
                     <div className="p-4">
@@ -561,6 +574,8 @@ export default function AdminPage() {
                           configSchema={configSchema}
                           cameraZoom={cameraZoom}
                           viewerSettings={viewerSettings}
+                          selections={schemaDefaults(configSchema)}
+                          disablePostProcessing
                         />
                       ) : (
                         <div className="w-full h-full bg-gray-100 flex items-center justify-center text-sm text-gray-400">

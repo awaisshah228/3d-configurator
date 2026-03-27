@@ -2,6 +2,8 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { Selections, LogoPlacement } from "@/lib/configurator-types";
 
+const MAX_HISTORY = 30;
+
 interface ConfiguratorState {
   /** Per-product saved selections: productId → partId → optionId → value */
   savedSelections: Record<string, Selections>;
@@ -11,11 +13,20 @@ interface ConfiguratorState {
   selections: Selections;
   logos: Record<string, LogoPlacement | null>;
 
+  /** Undo/redo history stacks */
+  history: Selections[];
+  historyIndex: number;
+
   setSelection: (partId: string, optionType: string, value: string) => void;
   setLogo: (partId: string, optionId: string, placement: LogoPlacement | null) => void;
   resetSelections: () => void;
   /** Load saved selections for productId, falling back to defaults */
   initSelections: (productId: string, defaults: Selections) => void;
+
+  undo: () => void;
+  redo: () => void;
+  canUndo: () => boolean;
+  canRedo: () => boolean;
 }
 
 export const useConfiguratorStore = create<ConfiguratorState>()(
@@ -25,6 +36,8 @@ export const useConfiguratorStore = create<ConfiguratorState>()(
       activeProductId: null,
       selections: {},
       logos: {},
+      history: [],
+      historyIndex: -1,
 
       setSelection: (partId, optionType, value) =>
         set((state) => {
@@ -35,7 +48,17 @@ export const useConfiguratorStore = create<ConfiguratorState>()(
           const savedSelections = state.activeProductId
             ? { ...state.savedSelections, [state.activeProductId]: newSelections }
             : state.savedSelections;
-          return { selections: newSelections, savedSelections };
+
+          // Push to undo history (truncate any future states after current index)
+          const truncatedHistory = state.history.slice(0, state.historyIndex + 1);
+          const newHistory = [...truncatedHistory, state.selections].slice(-MAX_HISTORY);
+
+          return {
+            selections: newSelections,
+            savedSelections,
+            history: newHistory,
+            historyIndex: newHistory.length - 1,
+          };
         }),
 
       setLogo: (partId, optionId, placement) =>
@@ -48,17 +71,45 @@ export const useConfiguratorStore = create<ConfiguratorState>()(
           const savedSelections = state.activeProductId
             ? { ...state.savedSelections, [state.activeProductId]: undefined as unknown as Selections }
             : state.savedSelections;
-          return { selections: {}, logos: {}, activeProductId: null, savedSelections };
+          return { selections: {}, logos: {}, activeProductId: null, savedSelections, history: [], historyIndex: -1 };
         }),
 
       initSelections: (productId, defaults) => {
         const saved = get().savedSelections[productId];
+        const initial = saved ?? defaults;
         set({
           activeProductId: productId,
-          selections: saved ?? defaults,
+          selections: initial,
           logos: {},
+          history: [initial],
+          historyIndex: 0,
         });
       },
+
+      undo: () =>
+        set((state) => {
+          if (state.historyIndex <= 0) return state;
+          const newIndex = state.historyIndex - 1;
+          const prevSelections = state.history[newIndex];
+          const savedSelections = state.activeProductId
+            ? { ...state.savedSelections, [state.activeProductId]: prevSelections }
+            : state.savedSelections;
+          return { selections: prevSelections, historyIndex: newIndex, savedSelections };
+        }),
+
+      redo: () =>
+        set((state) => {
+          if (state.historyIndex >= state.history.length - 1) return state;
+          const newIndex = state.historyIndex + 1;
+          const nextSelections = state.history[newIndex];
+          const savedSelections = state.activeProductId
+            ? { ...state.savedSelections, [state.activeProductId]: nextSelections }
+            : state.savedSelections;
+          return { selections: nextSelections, historyIndex: newIndex, savedSelections };
+        }),
+
+      canUndo: () => get().historyIndex > 0,
+      canRedo: () => get().historyIndex < get().history.length - 1,
     }),
     {
       name: "3d-config-selections",

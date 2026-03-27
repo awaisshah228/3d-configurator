@@ -49,6 +49,7 @@ export default function AdminSchemaPreview({
           configSchema={configSchema}
           cameraZoom={cameraZoom}
           viewerSettings={viewerSettings}
+          disablePostProcessing
         />
       </div>
 
