@@ -45,6 +45,28 @@ export interface ConfigSchema {
   parts: ConfigPart[];
 }
 
+// ─── Viewer Settings ────────────────────────────────────────────────
+
+export interface ViewerSettings {
+  bgColor: string;           // hex background color
+  envPreset: string;         // drei Environment preset
+  ambientIntensity: number;  // 0–2
+  keyLightIntensity: number; // 0–3
+  shadowOpacity: number;     // 0–1
+  shadowEnabled: boolean;
+  cameraAngle: number;       // 0–1 (how high above model camera sits)
+}
+
+export const DEFAULT_VIEWER_SETTINGS: ViewerSettings = {
+  bgColor: "#e8e8e8",
+  envPreset: "studio",
+  ambientIntensity: 0.7,
+  keyLightIntensity: 1.2,
+  shadowOpacity: 0.35,
+  shadowEnabled: true,
+  cameraAngle: 0.15,
+};
+
 // ─── Product Types ──────────────────────────────────────────────────
 
 export interface Product {
@@ -56,7 +78,8 @@ export interface Product {
   configSchema: ConfigSchema;
   meshNames: string[];
   materialNames: string[];
-  cameraZoom?: number; // multiplier: 1 = default fit, <1 = closer, >1 = further
+  cameraZoom?: number;
+  viewerSettings?: ViewerSettings;
 }
 
 // ─── Selections (what the user chose) ───────────────────────────────

@@ -6,6 +6,9 @@ import ModelUploader from "@/components/admin/ModelUploader";
 import MeshAnalyzer from "@/components/admin/MeshAnalyzer";
 import ConfigSchemaEditor from "@/components/admin/ConfigSchemaEditor";
 import AdminModelViewer from "@/components/admin/AdminModelViewer";
+import ViewerSettingsPanel from "@/components/admin/ViewerSettingsPanel";
+import { DEFAULT_VIEWER_SETTINGS } from "@/lib/configurator-types";
+import type { ViewerSettings } from "@/lib/configurator-types";
 import { useProductsStore } from "@/stores/products-store";
 import type { ConfigSchema } from "@/lib/configurator-types";
 
@@ -39,6 +42,7 @@ export default function AdminPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [selectedMesh, setSelectedMesh] = useState<string | null>(null);
   const [cameraZoom, setCameraZoom] = useState<number>(1);
+  const [viewerSettings, setViewerSettings] = useState<ViewerSettings>(DEFAULT_VIEWER_SETTINGS);
 
   const handleModelUploaded = (file: File, url: string) => {
     setModelUrl(url);
@@ -68,6 +72,7 @@ export default function AdminPage() {
         meshNames,
         materialNames,
         cameraZoom,
+        viewerSettings,
       });
       setEditingId(null);
     } else {
@@ -80,6 +85,7 @@ export default function AdminPage() {
         meshNames,
         materialNames,
         cameraZoom,
+        viewerSettings,
       });
     }
 
@@ -91,6 +97,8 @@ export default function AdminPage() {
     setMeshNames([]);
     setMaterialNames([]);
     setConfigSchema({ version: 1, parts: [] });
+    setViewerSettings(DEFAULT_VIEWER_SETTINGS);
+    setCameraZoom(1);
     setActiveTab("manage");
   };
 
@@ -105,6 +113,7 @@ export default function AdminPage() {
     setMaterialNames(product.materialNames);
     setConfigSchema(product.configSchema);
     setCameraZoom(product.cameraZoom ?? 1);
+    setViewerSettings(product.viewerSettings ?? DEFAULT_VIEWER_SETTINGS);
     setActiveTab("add");
   };
 
@@ -334,11 +343,22 @@ export default function AdminPage() {
                       selectedMesh={selectedMesh}
                       onMeshSelect={setSelectedMesh}
                       cameraZoom={cameraZoom}
+                      viewerSettings={viewerSettings}
                     />
                   </div>
                 ) : (
                   <div className="h-[500px] bg-gray-100 rounded-xl flex items-center justify-center text-gray-400">
                     Upload a model to see preview
+                  </div>
+                )}
+
+                {/* Viewer Settings */}
+                {modelUrl && (
+                  <div className="mt-4 border-t border-gray-100 pt-4">
+                    <ViewerSettingsPanel
+                      settings={viewerSettings}
+                      onChange={setViewerSettings}
+                    />
                   </div>
                 )}
               </div>

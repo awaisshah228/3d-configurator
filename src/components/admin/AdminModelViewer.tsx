@@ -5,6 +5,8 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Environment, ContactShadows, Center, useGLTF } from "@react-three/drei";
 import type { ThreeEvent } from "@react-three/fiber";
 import * as THREE from "three";
+import type { ViewerSettings } from "@/lib/configurator-types";
+import { DEFAULT_VIEWER_SETTINGS } from "@/lib/configurator-types";
 
 const TEST_COLORS = [
   { id: "white", hex: "#ffffff" },
@@ -174,6 +176,7 @@ interface AdminModelViewerProps {
   selectedMesh: string | null;
   onMeshSelect: (name: string | null) => void;
   cameraZoom?: number;
+  viewerSettings?: ViewerSettings;
 }
 
 export default function AdminModelViewer({
@@ -181,6 +184,7 @@ export default function AdminModelViewer({
   selectedMesh,
   onMeshSelect,
   cameraZoom = 1,
+  viewerSettings = DEFAULT_VIEWER_SETTINGS,
 }: AdminModelViewerProps) {
   const [hoveredMesh, setHoveredMesh] = useState<string | null>(null);
   const [testOverrides, setTestOverrides] = useState<Record<string, TestOverride>>({});
@@ -226,11 +230,11 @@ export default function AdminModelViewer({
           }}
           style={{ cursor: hoveredMesh ? "pointer" : "default" }}
         >
-          <color attach="background" args={["#e8e8e8"]} />
-          <ambientLight intensity={0.7} />
-          <directionalLight position={[3, 5, 4]} intensity={1.2} castShadow shadow-mapSize={[1024, 1024]} />
-          <directionalLight position={[-4, 2, 2]} intensity={0.5} />
-          <directionalLight position={[0, 3, -5]} intensity={0.3} />
+          <color attach="background" args={[viewerSettings.bgColor]} />
+          <ambientLight intensity={viewerSettings.ambientIntensity} />
+          <directionalLight position={[3, 5, 4]} intensity={viewerSettings.keyLightIntensity} castShadow shadow-mapSize={[1024, 1024]} />
+          <directionalLight position={[-4, 2, 2]} intensity={viewerSettings.keyLightIntensity * 0.4} />
+          <directionalLight position={[0, 3, -5]} intensity={viewerSettings.keyLightIntensity * 0.25} />
           <Suspense fallback={null}>
             <Center>
               <InteractiveModel
@@ -241,9 +245,11 @@ export default function AdminModelViewer({
                 onHover={setHoveredMesh}
               />
             </Center>
-            <ContactShadows position={[0, -0.01, 0]} opacity={0.35} scale={10} blur={3} far={10} />
-            <Environment preset="studio" />
-            <CameraRig modelUrl={modelUrl} zoom={cameraZoom} />
+            {viewerSettings.shadowEnabled && (
+              <ContactShadows position={[0, -0.01, 0]} opacity={viewerSettings.shadowOpacity} scale={10} blur={3} far={10} />
+            )}
+            <Environment preset={viewerSettings.envPreset as Parameters<typeof Environment>[0]["preset"]} />
+            <CameraRig modelUrl={modelUrl} zoom={cameraZoom} angle={viewerSettings.cameraAngle} />
           </Suspense>
         </Canvas>
 
