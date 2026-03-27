@@ -67,7 +67,6 @@ export default function DynamicModel({ modelUrl, configSchema }: DynamicModelPro
 
     for (const part of configSchema.parts) {
       const partSelections = selections[part.id];
-      if (!partSelections) continue;
       const meshes = findMeshes(part.meshNames);
 
       for (const mesh of meshes) {
@@ -75,7 +74,7 @@ export default function DynamicModel({ modelUrl, configSchema }: DynamicModelPro
         if (!material) continue;
 
         for (const option of part.options) {
-          const selectedValue = partSelections[option.id];
+          const selectedValue = partSelections?.[option.id] ?? option.defaultValue;
           if (!selectedValue) continue;
 
           if (option.type === "color" && option.colors) {
