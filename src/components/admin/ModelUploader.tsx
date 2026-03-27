@@ -9,62 +9,80 @@ interface ModelUploaderProps {
 const MODEL_EXTENSIONS = [".glb", ".gltf"];
 const ASSET_EXTENSIONS = [".bin", ".png", ".jpg", ".jpeg", ".webp", ".ktx2", ".basis"];
 
-interface ScannedBundle {
-  modelFile: File;
-  assetFiles: File[];
+function getExt(name: string) {
+  return name.substring(name.lastIndexOf(".")).toLowerCase();
 }
 
-/** Recursively read all files from a FileSystemDirectoryEntry */
-function readDirectoryEntries(dirEntry: FileSystemDirectoryEntry): Promise<File[]> {
-  return new Promise((resolve) => {
-    const reader = dirEntry.createReader();
-    const allFiles: File[] = [];
+interface FileEntry {
+  file: File;
+  /** Path from the drop/selection root, e.g. "mymodel/textures/foo.png" */
+  path: string;
+}
 
+interface AssetEntry {
+  file: File;
+  /** Path relative to the GLTF file's location, e.g. "textures/foo.png" */
+  relativePath: string;
+}
+
+interface ScannedBundle {
+  modelFile: File;
+  assetFiles: AssetEntry[];
+}
+
+/** Recursively read all files from a FileSystemDirectoryEntry, preserving paths */
+async function readDirEntries(dirEntry: FileSystemDirectoryEntry): Promise<FileEntry[]> {
+  const reader = dirEntry.createReader();
+  const results: FileEntry[] = [];
+
+  await new Promise<void>((resolve) => {
     const readBatch = () => {
       reader.readEntries(async (entries) => {
-        if (entries.length === 0) {
-          resolve(allFiles);
-          return;
-        }
+        if (entries.length === 0) { resolve(); return; }
         for (const entry of entries) {
           if (entry.isFile) {
             const file = await new Promise<File>((res) =>
               (entry as FileSystemFileEntry).file(res)
             );
-            allFiles.push(file);
+            // entry.fullPath starts with "/", strip it
+            results.push({ file, path: entry.fullPath.replace(/^\//, "") });
           } else if (entry.isDirectory) {
-            const nested = await readDirectoryEntries(entry as FileSystemDirectoryEntry);
-            allFiles.push(...nested);
+            const nested = await readDirEntries(entry as FileSystemDirectoryEntry);
+            results.push(...nested);
           }
         }
-        readBatch(); // read next batch (browsers return ≤100 entries at a time)
+        readBatch();
       });
     };
-
     readBatch();
   });
+
+  return results;
 }
 
-/** From a flat list of files, pick the model + assets */
-function scanBundle(files: File[]): ScannedBundle | null {
-  const models = files.filter((f) => {
-    const ext = f.name.substring(f.name.lastIndexOf(".")).toLowerCase();
-    return MODEL_EXTENSIONS.includes(ext);
-  });
+/** Scan a flat list of FileEntry and return the model + assets with correct relative paths */
+function scanBundle(entries: FileEntry[]): ScannedBundle | null {
+  const modelEntry =
+    entries.find((e) => e.file.name.toLowerCase().endsWith(".gltf")) ??
+    entries.find((e) => MODEL_EXTENSIONS.includes(getExt(e.file.name)));
 
-  if (models.length === 0) return null;
+  if (!modelEntry) return null;
 
-  // Prefer .gltf over .glb if both present; otherwise take the first
-  const modelFile =
-    models.find((f) => f.name.toLowerCase().endsWith(".gltf")) ?? models[0];
+  // Base dir of the model file within the uploaded tree, e.g. "mymodel/" or ""
+  const lastSlash = modelEntry.path.lastIndexOf("/");
+  const modelBaseDir = lastSlash >= 0 ? modelEntry.path.substring(0, lastSlash + 1) : "";
 
-  const assetFiles = files.filter((f) => {
-    if (f === modelFile) return false;
-    const ext = f.name.substring(f.name.lastIndexOf(".")).toLowerCase();
-    return ASSET_EXTENSIONS.includes(ext);
-  });
+  const assetFiles: AssetEntry[] = entries
+    .filter((e) => e !== modelEntry && ASSET_EXTENSIONS.includes(getExt(e.file.name)))
+    .map((e) => ({
+      file: e.file,
+      // Strip the model's base dir so paths are relative to the GLTF location
+      relativePath: e.path.startsWith(modelBaseDir)
+        ? e.path.substring(modelBaseDir.length)
+        : e.file.name,
+    }));
 
-  return { modelFile, assetFiles };
+  return { modelFile: modelEntry.file, assetFiles };
 }
 
 export default function ModelUploader({ onModelUploaded }: ModelUploaderProps) {
@@ -76,9 +94,9 @@ export default function ModelUploader({ onModelUploaded }: ModelUploaderProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
-  const applyFiles = (files: File[]) => {
+  const applyEntries = (entries: FileEntry[]) => {
     setError(null);
-    const scanned = scanBundle(files);
+    const scanned = scanBundle(entries);
     if (!scanned) {
       setError("No .glb or .gltf file found. Please include one in your selection.");
       return;
@@ -90,34 +108,44 @@ export default function ModelUploader({ onModelUploaded }: ModelUploaderProps) {
     e.preventDefault();
     setIsDragging(false);
     setError(null);
-
     const items = Array.from(e.dataTransfer.items);
-    const allFiles: File[] = [];
+    const entries: FileEntry[] = [];
 
     for (const item of items) {
       const entry = item.webkitGetAsEntry?.();
       if (!entry) continue;
-
       if (entry.isDirectory) {
-        const nested = await readDirectoryEntries(entry as FileSystemDirectoryEntry);
-        allFiles.push(...nested);
+        const nested = await readDirEntries(entry as FileSystemDirectoryEntry);
+        entries.push(...nested);
       } else if (entry.isFile) {
         const file = await new Promise<File>((res) =>
           (entry as FileSystemFileEntry).file(res)
         );
-        allFiles.push(file);
+        entries.push({ file, path: file.name });
       }
     }
 
-    applyFiles(allFiles);
+    applyEntries(entries);
   };
 
+  // webkitdirectory input — files carry webkitRelativePath like "folder/textures/foo.png"
   const handleFolderInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) applyFiles(Array.from(e.target.files));
+    if (!e.target.files) return;
+    const entries: FileEntry[] = Array.from(e.target.files).map((f) => ({
+      file: f,
+      path: (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name,
+    }));
+    applyEntries(entries);
   };
 
+  // Regular file picker — no folder structure, treat paths as flat
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files) applyFiles(Array.from(e.target.files));
+    if (!e.target.files) return;
+    const entries: FileEntry[] = Array.from(e.target.files).map((f) => ({
+      file: f,
+      path: f.name,
+    }));
+    applyEntries(entries);
   };
 
   const handleUpload = async () => {
@@ -128,20 +156,16 @@ export default function ModelUploader({ onModelUploaded }: ModelUploaderProps) {
       const formData = new FormData();
       formData.append("model", bundle.modelFile);
       for (const asset of bundle.assetFiles) {
-        formData.append("assets", asset);
+        formData.append("assets", asset.file);
+        formData.append("assetPaths", asset.relativePath); // matches assets[] order
       }
 
-      const res = await fetch("/api/models/upload", {
-        method: "POST",
-        body: formData,
-      });
-
+      const res = await fetch("/api/models/upload", { method: "POST", body: formData });
       if (!res.ok) throw new Error("Upload failed");
 
       const data = await res.json();
       onModelUploaded(bundle.modelFile, data.url);
     } catch {
-      // Fallback blob URL (works for GLB; GLTF with external assets may not resolve)
       const url = URL.createObjectURL(bundle.modelFile);
       onModelUploaded(bundle.modelFile, url);
     } finally {
@@ -175,12 +199,9 @@ export default function ModelUploader({ onModelUploaded }: ModelUploaderProps) {
         ) : (
           <div>
             <div className="text-4xl mb-3 text-gray-400">&#9651;</div>
-            <p className="text-gray-600 font-medium">
-              Drop a folder or files here
-            </p>
+            <p className="text-gray-600 font-medium">Drop a folder or files here</p>
             <p className="text-gray-400 text-sm mt-1">
-              The folder can contain a .gltf/.glb + any .bin and texture files —
-              the right files will be detected automatically
+              Drop a whole folder — the .gltf/.glb and assets are detected automatically
             </p>
           </div>
         )}
@@ -208,7 +229,7 @@ export default function ModelUploader({ onModelUploaded }: ModelUploaderProps) {
       <input
         ref={folderInputRef}
         type="file"
-        // @ts-expect-error — webkitdirectory is not in TS types but is widely supported
+        // @ts-expect-error — webkitdirectory not in TS types but widely supported
         webkitdirectory=""
         multiple
         className="hidden"
@@ -233,14 +254,15 @@ export default function ModelUploader({ onModelUploaded }: ModelUploaderProps) {
             </span>
             <span className="text-gray-700 truncate">{bundle.modelFile.name}</span>
           </div>
-          {bundle.assetFiles.map((f) => {
-            const ext = f.name.substring(f.name.lastIndexOf(".") + 1).toUpperCase();
+          {bundle.assetFiles.map((a) => {
+            const ext = a.file.name.substring(a.file.name.lastIndexOf(".") + 1).toUpperCase();
             return (
-              <div key={f.name} className="flex items-center gap-2">
-                <span className="px-1.5 py-0.5 rounded bg-gray-200 text-gray-600 text-xs font-medium">
+              <div key={a.relativePath} className="flex items-center gap-2">
+                <span className="px-1.5 py-0.5 rounded bg-gray-200 text-gray-600 text-xs font-medium shrink-0">
                   {ext}
                 </span>
-                <span className="text-gray-600 truncate">{f.name}</span>
+                {/* Show the relative path so users can confirm structure is correct */}
+                <span className="text-gray-500 truncate font-mono text-xs">{a.relativePath}</span>
               </div>
             );
           })}

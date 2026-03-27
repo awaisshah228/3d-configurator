@@ -5,6 +5,15 @@ import path from "path";
 const MODEL_EXTENSIONS = [".glb", ".gltf"];
 const ASSET_EXTENSIONS = [".bin", ".png", ".jpg", ".jpeg", ".webp", ".ktx2", ".basis"];
 
+/** Prevent path traversal — keeps path within the bundle folder */
+function safePath(relativePath: string): string {
+  return relativePath
+    .split("/")
+    .map((seg) => seg.replace(/[^a-zA-Z0-9._-]/g, "_"))
+    .filter((seg) => seg.length > 0 && seg !== "..")
+    .join("/");
+}
+
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
@@ -24,8 +33,9 @@ export async function POST(request: NextRequest) {
 
     const isGltf = ext === ".gltf";
     const assetFiles = formData.getAll("assets") as File[];
+    // assetPaths[i] is the relative path for assetFiles[i], e.g. "textures/foo.png"
+    const assetPaths = formData.getAll("assetPaths") as string[];
 
-    // Validate asset extensions
     for (const asset of assetFiles) {
       const assetExt = path.extname(asset.name).toLowerCase();
       if (!ASSET_EXTENSIONS.includes(assetExt)) {
@@ -38,37 +48,37 @@ export async function POST(request: NextRequest) {
 
     const modelsDir = path.join(process.cwd(), "public", "models");
 
-    let modelUrl: string;
-
     if (isGltf) {
-      // Save GLTF + all assets into a named subfolder so relative paths resolve
       const folderName = `${Date.now()}-${path.basename(modelFile.name, ".gltf").replace(/[^a-zA-Z0-9-]/g, "_")}`;
       const folderPath = path.join(modelsDir, folderName);
       await mkdir(folderPath, { recursive: true });
 
-      // Save main GLTF file
+      // Save GLTF
       const gltfBytes = await modelFile.arrayBuffer();
       await writeFile(path.join(folderPath, "model.gltf"), Buffer.from(gltfBytes));
 
-      // Save each asset with its original filename so GLTF references resolve
-      for (const asset of assetFiles) {
-        const assetBytes = await asset.arrayBuffer();
-        const safeName = asset.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-        await writeFile(path.join(folderPath, safeName), Buffer.from(assetBytes));
+      // Save each asset at its original relative path (recreating subdirs)
+      for (let i = 0; i < assetFiles.length; i++) {
+        const asset = assetFiles[i];
+        // Use the sent relative path if available, otherwise fall back to filename
+        const relPath = safePath(assetPaths[i] ?? asset.name);
+        const destPath = path.join(folderPath, relPath);
+
+        // Create subdirectory (e.g. "textures/") if needed
+        await mkdir(path.dirname(destPath), { recursive: true });
+
+        const bytes = await asset.arrayBuffer();
+        await writeFile(destPath, Buffer.from(bytes));
       }
 
-      modelUrl = `/models/${folderName}/model.gltf`;
+      return NextResponse.json({ url: `/models/${folderName}/model.gltf`, size: modelFile.size });
     } else {
-      // GLB: single file, no subfolder needed
       await mkdir(modelsDir, { recursive: true });
       const fileName = `${Date.now()}-${modelFile.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
-      const filePath = path.join(modelsDir, fileName);
       const bytes = await modelFile.arrayBuffer();
-      await writeFile(filePath, Buffer.from(bytes));
-      modelUrl = `/models/${fileName}`;
+      await writeFile(path.join(modelsDir, fileName), Buffer.from(bytes));
+      return NextResponse.json({ url: `/models/${fileName}`, size: modelFile.size });
     }
-
-    return NextResponse.json({ url: modelUrl, size: modelFile.size });
   } catch (error) {
     console.error("Upload error:", error);
     return NextResponse.json({ error: "Upload failed" }, { status: 500 });
