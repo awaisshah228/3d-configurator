@@ -312,7 +312,6 @@ export default function AdminPage() {
                         modelUrl={product.modelUrl}
                         configSchema={product.configSchema}
                         selections={schemaDefaults(product.configSchema)}
-                        disablePostProcessing
                       />
                     </div>
                     <div className="p-4">
@@ -559,23 +558,21 @@ export default function AdminPage() {
             {wizardStep === 4 && (
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Left: interactive configurator preview */}
-                <div>
+                <div className="space-y-4">
                   <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
                     <div className="px-5 pt-5 pb-3 border-b border-gray-100">
                       <h3 className="font-bold text-gray-900">Customer preview</h3>
                       <p className="text-xs text-gray-400 mt-0.5">
-                        This is exactly what your customers will see
+                        Test your options — this is what customers will see
                       </p>
                     </div>
                     <div className="h-130">
                       {modelUrl ? (
-                        <ConfiguratorCanvas
+                        <AdminSchemaPreview
                           modelUrl={modelUrl}
                           configSchema={configSchema}
                           cameraZoom={cameraZoom}
                           viewerSettings={viewerSettings}
-                          selections={schemaDefaults(configSchema)}
-                          disablePostProcessing
                         />
                       ) : (
                         <div className="w-full h-full bg-gray-100 flex items-center justify-center text-sm text-gray-400">
@@ -583,6 +580,26 @@ export default function AdminPage() {
                         </div>
                       )}
                     </div>
+                  </div>
+
+                  {/* Scene settings also accessible on step 4 */}
+                  <div className="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wide">
+                        Scene settings
+                      </p>
+                      <div className="flex items-center gap-2 text-xs text-gray-400">
+                        <span>Zoom</span>
+                        <input
+                          type="range" min={0.3} max={3} step={0.05}
+                          value={cameraZoom}
+                          onChange={(e) => setCameraZoom(parseFloat(e.target.value))}
+                          className="w-20 accent-gray-900"
+                        />
+                        <span className="w-8 text-right font-medium text-gray-600">{cameraZoom.toFixed(1)}×</span>
+                      </div>
+                    </div>
+                    <ViewerSettingsPanel settings={viewerSettings} onChange={setViewerSettings} />
                   </div>
                 </div>
 

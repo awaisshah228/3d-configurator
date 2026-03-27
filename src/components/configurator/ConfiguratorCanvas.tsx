@@ -3,8 +3,6 @@
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Environment, ContactShadows, Center, useGLTF } from "@react-three/drei";
-import { EffectComposer, N8AO, Vignette, ToneMapping } from "@react-three/postprocessing";
-import { ToneMappingMode } from "postprocessing";
 import * as THREE from "three";
 import DynamicModel from "./DynamicModel";
 import type { ConfigSchema, ViewerSettings, Selections } from "@/lib/configurator-types";
@@ -19,8 +17,6 @@ interface ConfiguratorCanvasProps {
   viewPreset?: ViewPreset;
   autoRotate?: boolean;
   selections?: Selections;
-  /** Disable postprocessing for lightweight previews (admin cards, etc.) */
-  disablePostProcessing?: boolean;
 }
 
 function Loader() {
@@ -70,12 +66,10 @@ function CameraRig({
     if (!autoRotate) return;
     setIsAutoRotating(false);
     if (resumeTimerRef.current) clearTimeout(resumeTimerRef.current);
-    // Resume auto-rotate 4 seconds after user stops interacting
     resumeTimerRef.current = setTimeout(() => setIsAutoRotating(true), 4000);
   }, [autoRotate]);
 
   useFrame(() => {
-    // Step 1: fit camera to model on first load
     if (!cameraFitted.current) {
       const box = new THREE.Box3().setFromObject(modelScene);
       if (box.isEmpty()) return;
@@ -88,7 +82,6 @@ function CameraRig({
       cameraFitted.current = true;
     }
 
-    // Step 2: configure OrbitControls once it mounts
     if (!orbitFitted.current && orbitRef.current) {
       const r = radiusRef.current;
       orbitRef.current.target.set(0, 0, 0);
@@ -98,7 +91,6 @@ function CameraRig({
       orbitFitted.current = true;
     }
 
-    // Step 3: smooth lerp camera to view preset target
     if (targetCamRef.current) {
       camera.position.lerp(targetCamRef.current, 0.07);
       camera.lookAt(0, 0, 0);
@@ -110,7 +102,6 @@ function CameraRig({
     }
   });
 
-  // Trigger smooth camera move when zoom changes
   useEffect(() => {
     if (!cameraFitted.current || zoom === prevZoom.current) return;
     const ratio = zoom / prevZoom.current;
@@ -118,7 +109,6 @@ function CameraRig({
     targetCamRef.current = camera.position.clone().multiplyScalar(ratio);
   }, [zoom, camera]);
 
-  // Trigger smooth camera move when preset changes
   useEffect(() => {
     if (!cameraFitted.current || viewPreset === prevPreset.current) return;
     prevPreset.current = viewPreset;
@@ -159,7 +149,6 @@ export default function ConfiguratorCanvas({
   viewPreset = "default",
   autoRotate = false,
   selections,
-  disablePostProcessing = false,
 }: ConfiguratorCanvasProps) {
   const bg = viewerSettings?.bgColor ?? "#e8e8e8";
   const ambient = viewerSettings?.ambientIntensity ?? 0.7;
@@ -172,19 +161,19 @@ export default function ConfiguratorCanvas({
   return (
     <div className="w-full h-full rounded-xl overflow-hidden relative">
       <Canvas
-        camera={{ position: [0, 0, 1000], fov: 45, near: 0.01, far: 10000 }}
+        camera={{ position: [0, 0, 1000], fov: 45, near: 0.01, far: 100000 }}
         shadows
         dpr={[1, 2]}
         gl={{
           preserveDrawingBuffer: true,
           antialias: true,
-          toneMapping: disablePostProcessing ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping,
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 1.0,
           powerPreference: "high-performance",
         }}
       >
         <color attach="background" args={[bg]} />
 
-        {/* 3-point lighting with proper shadow config */}
         <ambientLight intensity={ambient} />
         <directionalLight
           position={[3, 5, 4]}
@@ -221,15 +210,6 @@ export default function ConfiguratorCanvas({
             autoRotate={autoRotate}
           />
         </Suspense>
-
-        {/* Post-processing for photorealism (skip for lightweight admin previews) */}
-        {!disablePostProcessing && (
-          <EffectComposer>
-            <N8AO aoRadius={0.5} intensity={1.5} distanceFalloff={0.5} />
-            <Vignette eskil={false} offset={0.15} darkness={0.3} />
-            <ToneMapping mode={ToneMappingMode.AGX} />
-          </EffectComposer>
-        )}
       </Canvas>
     </div>
   );
