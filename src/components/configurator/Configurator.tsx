@@ -17,6 +17,7 @@ const ConfiguratorCanvas = dynamic(() => import("./ConfiguratorCanvas"), {
 });
 
 interface ConfiguratorProps {
+  productId: string;
   modelUrl: string;
   configSchema: ConfigSchema;
   productName: string;
@@ -25,6 +26,7 @@ interface ConfiguratorProps {
 }
 
 export default function Configurator({
+  productId,
   modelUrl,
   configSchema,
   productName,
@@ -33,7 +35,7 @@ export default function Configurator({
 }: ConfiguratorProps) {
   const { initSelections, resetSelections } = useConfiguratorStore();
 
-  // Init default selections from config schema
+  // Load saved selections (or defaults) for this product
   useEffect(() => {
     const defaults: Selections = {};
     for (const part of configSchema.parts) {
@@ -42,9 +44,9 @@ export default function Configurator({
         defaults[part.id][option.id] = option.defaultValue;
       }
     }
-    initSelections(defaults);
+    initSelections(productId, defaults);
     return () => resetSelections();
-  }, [configSchema, initSelections, resetSelections]);
+  }, [productId, configSchema, initSelections, resetSelections]);
 
   return (
     <div className="flex flex-col lg:flex-row gap-6 h-full">
@@ -68,7 +70,7 @@ export default function Configurator({
                   defaults[part.id][option.id] = option.defaultValue;
                 }
               }
-              initSelections(defaults);
+              initSelections(productId, defaults);
             }}
             className="mt-4 w-full py-2 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition-colors"
           >

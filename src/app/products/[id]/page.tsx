@@ -43,6 +43,7 @@ export default function ProductPage({ params }: { params: Promise<{ id: string }
       {/* Configurator */}
       <main className="max-w-7xl mx-auto px-6 py-8">
         <Configurator
+          productId={product.id}
           modelUrl={product.modelUrl}
           configSchema={product.configSchema}
           productName={product.name}
