@@ -75,6 +75,8 @@ export interface ViewerSettings {
   shadowOpacity: number;     // 0–1
   shadowEnabled: boolean;
   cameraAngle: number;       // 0–1 (how high above model camera sits)
+  cameraAzimuth?: number;    // horizontal rotation in radians (saved from admin orbit)
+  cameraPolar?: number;      // vertical rotation in radians (saved from admin orbit)
 }
 
 export const DEFAULT_VIEWER_SETTINGS: ViewerSettings = {

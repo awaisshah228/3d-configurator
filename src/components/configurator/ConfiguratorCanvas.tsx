@@ -9,6 +9,12 @@ import type { ConfigSchema, ViewerSettings, Selections } from "@/lib/configurato
 
 export type ViewPreset = "default" | "front" | "back" | "left" | "right" | "top";
 
+/** Camera angles reported back from the 3D scene */
+export interface CameraAngles {
+  azimuth: number;  // horizontal rotation (radians)
+  polar: number;    // vertical rotation (radians)
+}
+
 interface ConfiguratorCanvasProps {
   modelUrl: string;
   configSchema: ConfigSchema;
@@ -17,6 +23,8 @@ interface ConfiguratorCanvasProps {
   viewPreset?: ViewPreset;
   autoRotate?: boolean;
   selections?: Selections;
+  /** Called when user requests saving the current camera view (admin only) */
+  onSaveView?: (angles: CameraAngles) => void;
 }
 
 function Loader() {
@@ -32,16 +40,26 @@ function Loader() {
   );
 }
 
+// Store for communicating orbit angles out of the Canvas
+let _currentOrbitAngles: CameraAngles = { azimuth: 0, polar: Math.PI / 2 };
+export function getCurrentCameraAngles(): CameraAngles {
+  return { ..._currentOrbitAngles };
+}
+
 function CameraRig({
   modelUrl,
   zoom = 1,
   angle = 0.15,
+  savedAzimuth,
+  savedPolar,
   viewPreset = "default",
   autoRotate = false,
 }: {
   modelUrl: string;
   zoom?: number;
   angle?: number;
+  savedAzimuth?: number;
+  savedPolar?: number;
   viewPreset?: ViewPreset;
   autoRotate?: boolean;
 }) {
@@ -77,7 +95,17 @@ function CameraRig({
       box.getBoundingSphere(sphere);
       radiusRef.current = sphere.radius;
       const r = radiusRef.current;
-      camera.position.set(0, r * angle, r * 2.5 * zoom);
+      const d = r * 2.5 * zoom;
+
+      // Use saved spherical coordinates if available, otherwise default front view
+      if (savedAzimuth !== undefined && savedPolar !== undefined) {
+        const x = d * Math.sin(savedPolar) * Math.sin(savedAzimuth);
+        const y = d * Math.cos(savedPolar);
+        const z = d * Math.sin(savedPolar) * Math.cos(savedAzimuth);
+        camera.position.set(x, y, z);
+      } else {
+        camera.position.set(0, r * angle, d);
+      }
       camera.lookAt(0, 0, 0);
       cameraFitted.current = true;
     }
@@ -99,6 +127,14 @@ function CameraRig({
         targetCamRef.current = null;
       }
       if (orbitRef.current) orbitRef.current.update();
+    }
+
+    // Track current orbit angles for "Save view" feature
+    if (orbitRef.current) {
+      _currentOrbitAngles = {
+        azimuth: orbitRef.current.getAzimuthalAngle(),
+        polar: orbitRef.current.getPolarAngle(),
+      };
     }
   });
 
@@ -149,6 +185,7 @@ export default function ConfiguratorCanvas({
   viewPreset = "default",
   autoRotate = false,
   selections,
+  onSaveView,
 }: ConfiguratorCanvasProps) {
   const bg = viewerSettings?.bgColor ?? "#e8e8e8";
   const ambient = viewerSettings?.ambientIntensity ?? 0.7;
@@ -157,9 +194,24 @@ export default function ConfiguratorCanvas({
   const shadowEnabled = viewerSettings?.shadowEnabled ?? true;
   const shadowOpacity = viewerSettings?.shadowOpacity ?? 0.35;
   const cameraAngle = viewerSettings?.cameraAngle ?? 0.15;
+  const savedAzimuth = viewerSettings?.cameraAzimuth;
+  const savedPolar = viewerSettings?.cameraPolar;
 
   return (
     <div className="w-full h-full rounded-xl overflow-hidden relative">
+      {/* Save View button — only shown when onSaveView is provided (admin) */}
+      {onSaveView && (
+        <button
+          onClick={() => onSaveView(getCurrentCameraAngles())}
+          className="absolute top-3 right-3 z-10 px-3 py-1.5 bg-white/90 backdrop-blur text-xs font-semibold text-gray-700 rounded-lg shadow-md border border-white/50 hover:bg-white transition-colors flex items-center gap-1.5"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          </svg>
+          Save this angle
+        </button>
+      )}
+
       <Canvas
         camera={{ position: [0, 0, 1000], fov: 45, near: 0.01, far: 100000 }}
         shadows
@@ -206,6 +258,8 @@ export default function ConfiguratorCanvas({
             modelUrl={modelUrl}
             zoom={cameraZoom}
             angle={cameraAngle}
+            savedAzimuth={savedAzimuth}
+            savedPolar={savedPolar}
             viewPreset={viewPreset}
             autoRotate={autoRotate}
           />

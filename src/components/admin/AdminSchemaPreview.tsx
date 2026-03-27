@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import ConfiguratorCanvas from "@/components/configurator/ConfiguratorCanvas";
+import type { CameraAngles } from "@/components/configurator/ConfiguratorCanvas";
 import PartSelector from "@/components/configurator/PartSelector";
 import { useConfiguratorStore } from "@/stores/configurator-store";
 import type { ConfigSchema, ViewerSettings } from "@/lib/configurator-types";
@@ -14,6 +15,7 @@ interface AdminSchemaPreviewProps {
   configSchema: ConfigSchema;
   cameraZoom?: number;
   viewerSettings?: ViewerSettings;
+  onSaveView?: (angles: CameraAngles) => void;
 }
 
 export default function AdminSchemaPreview({
@@ -21,6 +23,7 @@ export default function AdminSchemaPreview({
   configSchema,
   cameraZoom = 1,
   viewerSettings,
+  onSaveView,
 }: AdminSchemaPreviewProps) {
   const { initSelections, resetSelections } = useConfiguratorStore();
 
@@ -49,6 +52,7 @@ export default function AdminSchemaPreview({
           configSchema={configSchema}
           cameraZoom={cameraZoom}
           viewerSettings={viewerSettings}
+          onSaveView={onSaveView}
         />
       </div>
 

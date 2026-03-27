@@ -9,6 +9,7 @@ import AdminModelViewer, { type TestOverride } from "@/components/admin/AdminMod
 import ViewerSettingsPanel from "@/components/admin/ViewerSettingsPanel";
 import { DEFAULT_VIEWER_SETTINGS } from "@/lib/configurator-types";
 import type { ViewerSettings, ConfigSchema, Selections } from "@/lib/configurator-types";
+import type { CameraAngles } from "@/components/configurator/ConfiguratorCanvas";
 
 function schemaDefaults(schema: ConfigSchema): Selections {
   const out: Selections = {};
@@ -116,6 +117,17 @@ export default function AdminPage() {
   const [selectedMesh, setSelectedMesh] = useState<string | null>(null);
   const [testOverrides, setTestOverrides] = useState<Record<string, TestOverride>>({});
   const [uploadedTextures, setUploadedTextures] = useState<UploadedTexture[]>([]);
+  const [angleSaved, setAngleSaved] = useState(false);
+
+  const handleSaveView = useCallback((angles: CameraAngles) => {
+    setViewerSettings((prev) => ({
+      ...prev,
+      cameraAzimuth: angles.azimuth,
+      cameraPolar: angles.polar,
+    }));
+    setAngleSaved(true);
+    setTimeout(() => setAngleSaved(false), 2000);
+  }, []);
 
   const handleMeshesFound = useCallback((meshes: string[], materials: string[]) => {
     setMeshNames(meshes);
@@ -529,12 +541,18 @@ export default function AdminPage() {
 
                     {/* Canvas + options together */}
                     <div className="h-155">
+                      {angleSaved && (
+                        <div className="absolute top-14 right-4 z-20 px-3 py-1.5 bg-green-500 text-white text-xs font-semibold rounded-lg shadow-md">
+                          Camera angle saved!
+                        </div>
+                      )}
                       {modelUrl ? (
                         <AdminSchemaPreview
                           modelUrl={modelUrl}
                           configSchema={configSchema}
                           cameraZoom={cameraZoom}
                           viewerSettings={viewerSettings}
+                          onSaveView={handleSaveView}
                         />
                       ) : (
                         <div className="w-full h-full bg-gray-100 flex items-center justify-center text-sm text-gray-400">
@@ -573,6 +591,7 @@ export default function AdminPage() {
                           configSchema={configSchema}
                           cameraZoom={cameraZoom}
                           viewerSettings={viewerSettings}
+                          onSaveView={handleSaveView}
                         />
                       ) : (
                         <div className="w-full h-full bg-gray-100 flex items-center justify-center text-sm text-gray-400">
