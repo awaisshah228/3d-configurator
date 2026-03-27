@@ -23,6 +23,18 @@ const ConfiguratorCanvas = dynamic(
   }
 );
 
+const AdminSchemaPreview = dynamic(
+  () => import("@/components/admin/AdminSchemaPreview"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="w-full h-full bg-gray-100 flex items-center justify-center">
+        <div className="w-6 h-6 border-2 border-gray-300 border-t-gray-600 rounded-full animate-spin" />
+      </div>
+    ),
+  }
+);
+
 // ── Step indicator ───────────────────────────────────────────────────
 const STEPS = ["Upload Model", "Product Info", "Customisation", "Preview & Save"] as const;
 
@@ -480,11 +492,17 @@ export default function AdminPage() {
                   </div>
                 </div>
 
-                {/* Right: live 3D preview */}
+                {/* Right: live interactive preview */}
                 <div className="lg:sticky lg:top-24 lg:self-start space-y-4">
                   <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                    <div className="flex items-center justify-between px-4 pt-4 pb-2">
-                      <span className="text-sm font-semibold text-gray-700">Live preview</span>
+                    {/* Header */}
+                    <div className="flex items-center justify-between px-4 pt-4 pb-2 border-b border-gray-100">
+                      <div>
+                        <span className="text-sm font-semibold text-gray-800">Customer view</span>
+                        <p className="text-xs text-gray-400 mt-0.5">
+                          Click options below to test them live
+                        </p>
+                      </div>
                       <div className="flex items-center gap-2 text-xs text-gray-400">
                         <span>Zoom</span>
                         <input
@@ -496,15 +514,15 @@ export default function AdminPage() {
                         <span className="w-8 text-right font-medium text-gray-600">{cameraZoom.toFixed(1)}×</span>
                       </div>
                     </div>
-                    <div className="h-130">
+
+                    {/* Canvas + options together */}
+                    <div className="h-155">
                       {modelUrl ? (
-                        <AdminModelViewer
+                        <AdminSchemaPreview
                           modelUrl={modelUrl}
-                          selectedMesh={selectedMesh}
-                          onMeshSelect={setSelectedMesh}
+                          configSchema={configSchema}
                           cameraZoom={cameraZoom}
                           viewerSettings={viewerSettings}
-                          onOverridesChange={setTestOverrides}
                         />
                       ) : (
                         <div className="w-full h-full bg-gray-100 flex items-center justify-center text-sm text-gray-400">
