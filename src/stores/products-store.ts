@@ -111,6 +111,68 @@ const DEFAULT_PRODUCTS: Product[] = [
     meshNames: ["shoe_upper", "shoe_sole", "shoe_1", "shoe_2", "shoe_3"],
     materialNames: ["upper_material", "sole_material"],
   },
+  {
+    id: "boot-1",
+    name: "Classic Boot",
+    description: "A customizable 3D boot model",
+    modelUrl: "/models/boot.glb",
+    configSchema: {
+      version: 1,
+      parts: [
+        {
+          id: "upper",
+          label: "Upper",
+          meshNames: ["boot_upper", "upper", "Boot_Upper"],
+          options: [
+            {
+              id: "upper-color",
+              label: "Color",
+              type: "color",
+              colors: [
+                { id: "brown", label: "Brown", hex: "#8B5E3C" },
+                { id: "black", label: "Black", hex: "#1a1a1a" },
+                { id: "tan", label: "Tan", hex: "#D2A679" },
+                { id: "white", label: "White", hex: "#ffffff" },
+                { id: "red", label: "Red", hex: "#e53e3e" },
+              ],
+              defaultValue: "brown",
+            },
+            {
+              id: "upper-material",
+              label: "Material",
+              type: "material",
+              materials: [
+                { id: "leather", label: "Leather", roughness: 0.5, metalness: 0 },
+                { id: "suede", label: "Suede", roughness: 0.95, metalness: 0 },
+                { id: "synthetic", label: "Synthetic", roughness: 0.4, metalness: 0.1 },
+              ],
+              defaultValue: "leather",
+            },
+          ],
+        },
+        {
+          id: "sole",
+          label: "Sole",
+          meshNames: ["boot_sole", "sole", "Boot_Sole"],
+          options: [
+            {
+              id: "sole-color",
+              label: "Color",
+              type: "color",
+              colors: [
+                { id: "black", label: "Black", hex: "#1a1a1a" },
+                { id: "brown", label: "Brown", hex: "#8B5E3C" },
+                { id: "gum", label: "Gum", hex: "#c89b6e" },
+              ],
+              defaultValue: "black",
+            },
+          ],
+        },
+      ],
+    },
+    meshNames: ["boot_upper", "boot_sole", "upper", "sole", "Boot_Upper", "Boot_Sole"],
+    materialNames: ["upper_material", "sole_material"],
+  },
 ];
 
 interface ProductsState {
