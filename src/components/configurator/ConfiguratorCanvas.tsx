@@ -12,6 +12,8 @@ interface ConfiguratorCanvasProps {
   configSchema: ConfigSchema;
   cameraZoom?: number;
   viewerSettings?: ViewerSettings;
+  selectedPartId?: string | null;
+  onMeshClick?: (meshName: string) => void;
 }
 
 function Loader() {
@@ -32,7 +34,6 @@ function CameraRig({ modelUrl, zoom = 1, angle = 0.15 }: { modelUrl: string; zoo
   const radiusRef = useRef(1);
 
   useFrame(({ camera }) => {
-    // Step 1: position camera as soon as we have model bounds (no OrbitControls needed)
     if (!cameraFitted.current) {
       const box = new THREE.Box3().setFromObject(modelScene);
       if (box.isEmpty()) return;
@@ -44,8 +45,6 @@ function CameraRig({ modelUrl, zoom = 1, angle = 0.15 }: { modelUrl: string; zoo
       camera.lookAt(0, 0, 0);
       cameraFitted.current = true;
     }
-
-    // Step 2: configure OrbitControls as soon as it mounts (may be same or next frame)
     if (!orbitFitted.current && orbitRef.current) {
       const r = radiusRef.current;
       orbitRef.current.target.set(0, 0, 0);
@@ -64,6 +63,8 @@ export default function ConfiguratorCanvas({
   configSchema,
   cameraZoom = 1,
   viewerSettings,
+  selectedPartId,
+  onMeshClick,
 }: ConfiguratorCanvasProps) {
   const bg = viewerSettings?.bgColor ?? "#e8e8e8";
   const ambient = viewerSettings?.ambientIntensity ?? 0.7;
@@ -93,7 +94,12 @@ export default function ConfiguratorCanvas({
 
         <Suspense fallback={<Loader />}>
           <Center>
-            <DynamicModel modelUrl={modelUrl} configSchema={configSchema} />
+            <DynamicModel
+              modelUrl={modelUrl}
+              configSchema={configSchema}
+              selectedPartId={selectedPartId}
+              onMeshClick={onMeshClick}
+            />
           </Center>
           {shadowEnabled && (
             <ContactShadows position={[0, -0.01, 0]} opacity={shadowOpacity} scale={10} blur={3} far={10} />

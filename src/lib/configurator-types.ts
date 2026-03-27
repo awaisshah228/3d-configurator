@@ -4,6 +4,7 @@ export interface ColorOption {
   id: string;
   label: string;
   hex: string;
+  textureUrl?: string; // optional texture image (data URL or uploaded URL)
 }
 
 export interface MaterialPreset {
@@ -14,12 +15,20 @@ export interface MaterialPreset {
   roughness?: number;
 }
 
+export interface TextureOption {
+  id: string;
+  label: string;
+  url: string;        // server URL to the texture image
+  thumbnail?: string; // smaller preview URL (falls back to url)
+}
+
 export interface ConfigOption {
   id: string;
   label: string;
-  type: "color" | "material" | "visibility" | "logo";
+  type: "color" | "material" | "visibility" | "logo" | "texture";
   colors?: ColorOption[];
   materials?: MaterialPreset[];
+  textures?: TextureOption[];
   defaultVisible?: boolean;
   defaultValue: string;
 }

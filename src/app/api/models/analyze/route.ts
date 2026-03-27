@@ -12,6 +12,8 @@ interface MeshData {
     baseColor: number[];
     metallic: number;
     roughness: number;
+    hasTexture: boolean;
+    textureName: string | null;
   } | null;
   boundingBox: {
     min: [number, number, number];
@@ -60,11 +62,14 @@ export async function POST(request: NextRequest) {
         let material: MeshData["material"] = null;
         if (mat) {
           const baseColor = mat.getBaseColorFactor();
+          const baseColorTex = mat.getBaseColorTexture();
           material = {
             name: mat.getName() || "Unnamed Material",
             baseColor: [baseColor[0], baseColor[1], baseColor[2]],
             metallic: mat.getMetallicFactor(),
             roughness: mat.getRoughnessFactor(),
+            hasTexture: !!baseColorTex,
+            textureName: baseColorTex?.getName() ?? null,
           };
         }
 
@@ -98,14 +103,19 @@ export async function POST(request: NextRequest) {
     }
 
     // Collect unique materials
-    const materials = root.listMaterials().map((mat) => ({
-      name: mat.getName() || "Unnamed Material",
-      baseColor: mat.getBaseColorFactor().slice(0, 3),
-      metallic: mat.getMetallicFactor(),
-      roughness: mat.getRoughnessFactor(),
-      doubleSided: mat.getDoubleSided(),
-      alphaMode: mat.getAlphaMode(),
-    }));
+    const materials = root.listMaterials().map((mat) => {
+      const baseColorTex = mat.getBaseColorTexture();
+      return {
+        name: mat.getName() || "Unnamed Material",
+        baseColor: mat.getBaseColorFactor().slice(0, 3),
+        metallic: mat.getMetallicFactor(),
+        roughness: mat.getRoughnessFactor(),
+        doubleSided: mat.getDoubleSided(),
+        alphaMode: mat.getAlphaMode(),
+        hasTexture: !!baseColorTex,
+        textureName: baseColorTex?.getName() ?? null,
+      };
+    });
 
     return NextResponse.json({
       meshes,
