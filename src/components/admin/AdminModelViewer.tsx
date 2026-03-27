@@ -29,7 +29,7 @@ const TEST_MATERIALS = [
   { id: "silk", label: "Silk", roughness: 0.2, metalness: 0.05 },
 ];
 
-type TestOverride = { color?: string; roughness?: number; metalness?: number };
+export type TestOverride = { color?: string; roughness?: number; metalness?: number };
 
 interface InteractiveModelProps {
   modelUrl: string;
@@ -177,6 +177,7 @@ interface AdminModelViewerProps {
   onMeshSelect: (name: string | null) => void;
   cameraZoom?: number;
   viewerSettings?: ViewerSettings;
+  onOverridesChange?: (overrides: Record<string, TestOverride>) => void;
 }
 
 export default function AdminModelViewer({
@@ -185,9 +186,14 @@ export default function AdminModelViewer({
   onMeshSelect,
   cameraZoom = 1,
   viewerSettings = DEFAULT_VIEWER_SETTINGS,
+  onOverridesChange,
 }: AdminModelViewerProps) {
   const [hoveredMesh, setHoveredMesh] = useState<string | null>(null);
   const [testOverrides, setTestOverrides] = useState<Record<string, TestOverride>>({});
+
+  useEffect(() => {
+    onOverridesChange?.(testOverrides);
+  }, [testOverrides, onOverridesChange]);
 
   const applyColor = (hex: string) => {
     if (!selectedMesh) return;

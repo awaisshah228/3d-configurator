@@ -5,7 +5,7 @@ import dynamic from "next/dynamic";
 import ModelUploader from "@/components/admin/ModelUploader";
 import MeshAnalyzer from "@/components/admin/MeshAnalyzer";
 import ConfigSchemaEditor from "@/components/admin/ConfigSchemaEditor";
-import AdminModelViewer from "@/components/admin/AdminModelViewer";
+import AdminModelViewer, { type TestOverride } from "@/components/admin/AdminModelViewer";
 import ViewerSettingsPanel from "@/components/admin/ViewerSettingsPanel";
 import { DEFAULT_VIEWER_SETTINGS } from "@/lib/configurator-types";
 import type { ViewerSettings } from "@/lib/configurator-types";
@@ -43,6 +43,7 @@ export default function AdminPage() {
   const [selectedMesh, setSelectedMesh] = useState<string | null>(null);
   const [cameraZoom, setCameraZoom] = useState<number>(1);
   const [viewerSettings, setViewerSettings] = useState<ViewerSettings>(DEFAULT_VIEWER_SETTINGS);
+  const [testOverrides, setTestOverrides] = useState<Record<string, TestOverride>>({});
 
   const handleModelUploaded = (file: File, url: string) => {
     setModelUrl(url);
@@ -57,18 +58,48 @@ export default function AdminPage() {
     setMaterialNames(materials);
   }, []);
 
+  const applyOverridesToSchema = (schema: ConfigSchema, overrides: Record<string, TestOverride>): ConfigSchema => {
+    if (Object.keys(overrides).length === 0) return schema;
+    const newParts = schema.parts.map((part) => {
+      const meshOverride = part.meshNames.map((m) => overrides[m]).find(Boolean);
+      if (!meshOverride) return part;
+      const newOptions = part.options.map((option) => {
+        if (option.type === "color" && meshOverride.color && option.colors) {
+          let match = option.colors.find((c) => c.hex === meshOverride.color);
+          if (!match) {
+            const customId = `custom-${meshOverride.color.replace("#", "")}`;
+            const newColor = { id: customId, label: "Custom", hex: meshOverride.color };
+            return { ...option, colors: [...option.colors, newColor], defaultValue: customId };
+          }
+          return { ...option, defaultValue: match.id };
+        }
+        if (option.type === "material" && meshOverride.roughness !== undefined && option.materials) {
+          const match = option.materials.find(
+            (m) => m.roughness === meshOverride.roughness && m.metalness === meshOverride.metalness
+          );
+          if (match) return { ...option, defaultValue: match.id };
+        }
+        return option;
+      });
+      return { ...part, options: newOptions };
+    });
+    return { ...schema, parts: newParts };
+  };
+
   const handleSaveProduct = () => {
     if (!modelUrl || !productName) {
       alert("Please provide a model and product name");
       return;
     }
 
+    const schemaWithOverrides = applyOverridesToSchema(configSchema, testOverrides);
+
     if (editingId) {
       updateProduct(editingId, {
         name: productName,
         description: productDescription,
         modelUrl,
-        configSchema,
+        configSchema: schemaWithOverrides,
         meshNames,
         materialNames,
         cameraZoom,
@@ -81,7 +112,7 @@ export default function AdminPage() {
         name: productName,
         description: productDescription,
         modelUrl,
-        configSchema,
+        configSchema: schemaWithOverrides,
         meshNames,
         materialNames,
         cameraZoom,
@@ -99,6 +130,7 @@ export default function AdminPage() {
     setConfigSchema({ version: 1, parts: [] });
     setViewerSettings(DEFAULT_VIEWER_SETTINGS);
     setCameraZoom(1);
+    setTestOverrides({});
     setActiveTab("manage");
   };
 
@@ -162,6 +194,7 @@ export default function AdminPage() {
               setMeshNames([]);
               setMaterialNames([]);
               setConfigSchema({ version: 1, parts: [] });
+              setTestOverrides({});
             }}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               activeTab === "add"
@@ -344,6 +377,7 @@ export default function AdminPage() {
                       onMeshSelect={setSelectedMesh}
                       cameraZoom={cameraZoom}
                       viewerSettings={viewerSettings}
+                      onOverridesChange={setTestOverrides}
                     />
                   </div>
                 ) : (
